@@ -1,0 +1,20 @@
+# Local secrets and state
+.env
+.env.*
+!.env.example
+data/
+backup*/
+nyc-backups/
+*.sqlite
+*.sqlite-*
+*.db
+*.db-*
+invitations*.json
+invitations*.pending
+*.pem
+*.key
+id_ed25519*
+node_modules/
+*.zip
+*.tar.gz
+.DS_Store
