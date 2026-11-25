@@ -1,0 +1,66 @@
+name: Travel production deployment
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'public/**'
+      - 'server.mjs'
+      - 'seed.json'
+      - 'plans.json'
+      - 'food-v2.json'
+      - 'secret-v3.json'
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: travel-production
+  cancel-in-progress: false
+jobs:
+  test:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Fetch approved revision
+        run: |
+          git clone --no-checkout https://github.com/jitendraselvam/travel.git source
+          git -C source checkout --detach "$GITHUB_SHA"
+      - name: Build and smoke test
+        working-directory: source
+        run: |
+          set -euo pipefail
+          docker build -t travel-ci .
+          docker run --rm --entrypoint sh travel-ci -c 'node --check server.mjs && for f in public/*.js; do node --check "$f" || exit 1; done'
+          docker run -d --name travel-ci -p 127.0.0.1:18080:8080 travel-ci
+          trap 'docker rm -f travel-ci >/dev/null 2>&1 || true' EXIT
+          for i in $(seq 1 30); do
+            if curl -fsS http://127.0.0.1:18080/healthz && curl -fsS http://127.0.0.1:18080/ >/dev/null; then exit 0; fi
+            sleep 2
+          done
+          exit 1
+  deploy:
+    needs: test
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Deploy approved revision
+        shell: bash
+        env:
+          DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
+          DEPLOY_SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+          DEPLOY_KNOWN_HOSTS: ${{ secrets.DEPLOY_KNOWN_HOSTS }}
+        run: |
+          set -euo pipefail
+          : "${DEPLOY_HOST:?Missing DEPLOY_HOST}"
+          : "${DEPLOY_SSH_KEY:?Missing DEPLOY_SSH_KEY}"
+          : "${DEPLOY_KNOWN_HOSTS:?Missing DEPLOY_KNOWN_HOSTS}"
+          umask 077
+          keydir=$(mktemp -d)
+          trap 'rm -rf "$keydir"' EXIT
+          printf '%s\n' "$DEPLOY_SSH_KEY" > "$keydir/key"
+          printf '%s\n' "$DEPLOY_KNOWN_HOSTS" > "$keydir/known_hosts"
+          ssh -T -i "$keydir/key" -o IdentitiesOnly=yes -o BatchMode=yes \
+            -o StrictHostKeyChecking=yes -o UserKnownHostsFile="$keydir/known_hosts" \
+            -o ConnectTimeout=15 -o ServerAliveInterval=15 -o ServerAliveCountMax=4 \
+            "travel-deploy@$DEPLOY_HOST" "deploy $GITHUB_SHA"
