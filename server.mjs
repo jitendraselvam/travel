@@ -30,6 +30,20 @@ db.exec(`CREATE TABLE IF NOT EXISTS itinerary(day INTEGER PRIMARY KEY, revision 
 const defaults=JSON.parse(readFileSync('plans.json','utf8'));
 db.exec('BEGIN');try{
 for(let i=0;i<defaults.length;i++)db.prepare('INSERT OR IGNORE INTO itinerary(day,rows) VALUES(?,?)').run(i,JSON.stringify(defaults[i]));
+
+if(!db.prepare("SELECT value FROM meta WHERE key='parade-nov28'").get()){
+ const get=db.prepare('SELECT rows FROM itinerary WHERE day=?');
+ const save=db.prepare('UPDATE itinerary SET rows=?,revision=revision+1 WHERE day=?');
+ const thu=JSON.parse(get.get(1).rows), sat=JSON.parse(get.get(3).rows);
+ const names=["Leave for parade viewing","Macy’s Thanksgiving Day Parade"];
+ const moved=names.map((name,i)=>{const existing=sat.find(r=>r[1]===name)||thu.find(r=>r[1]===name);return existing?[...existing.slice(0,3),defaults[3][i][3],...existing.slice(4)]:defaults[3][i];});
+ const th=thu.filter(r=>!names.includes(r[1])).map(r=>r[1]==='Breakfast & freshen up'&&r[0]==='10:30 AM–12 PM'?defaults[1][0]:r);
+ const changes=[["Breakfast & downtown subway","8:30–9:30 AM","10:30–11:45 AM"],["Wall Street & Charging Bull","9:30–10:15 AM","11:45 AM–12:10 PM"],["9/11 Memorial & Oculus","10:15–11 AM","12:10–12:40 PM"],["Staple Street Skybridge","11–11:30 AM","12:40–1 PM"],["Chinatown food crawl","11:30 AM–12:30 PM","1–1:30 PM"],["SoHo & Little Italy","12:30–1:45 PM","1:30–2 PM"],["Walk to Brooklyn Bridge entrance","1:45–2:30 PM","2–2:30 PM"]];
+ const sa=[...moved,...sat.filter(r=>!names.includes(r[1])).map(r=>{const c=changes.find(c=>c[0]===r[1]&&c[1]===r[0]);return c?[c[2],...r.slice(1)]:r;})];
+ if(JSON.stringify(th)!==JSON.stringify(thu))save.run(JSON.stringify(th),1);
+ if(JSON.stringify(sa)!==JSON.stringify(sat))save.run(JSON.stringify(sa),3);
+ db.prepare("INSERT INTO meta VALUES('parade-nov28','1')").run();
+}
 if(!db.prepare("SELECT value FROM meta WHERE key='food-v2'").get()){
 for(const [category,name,location,note] of JSON.parse(readFileSync('food-v2.json','utf8')))db.prepare('INSERT OR IGNORE INTO items(category,name,location,note,created) VALUES(?,?,?,?,?)').run(category,name,location,note,Date.now());
 db.prepare("INSERT INTO meta VALUES('food-v2','1')").run();}
