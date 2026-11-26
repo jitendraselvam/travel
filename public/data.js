@@ -36,3 +36,6 @@ TRIP[3].photo.unshift(['Central Park West','Central Park West and West 74th Stre
 
 TRIP[4].plan.splice(2,0,["12–12:45 PM","Lapland Christmas Store NYC","3 W 57th St New York NY 10019","Walk from southeast Central Park via Fifth Avenue. Free walk-in festive shop with elves, Christmas displays and hot chocolate for purchase. Sunday 11 AM–8 PM; allow for queues. Then take F from 57 St to 34 St–Herald Sq for lunch.","walk"]);
 TRIP[4].plan[3][0]='12:45–1:30 PM';TRIP[4].plan[4][0]='1:30–3 PM';
+
+{const i=TRIP[5].plan.findIndex(r=>r[1]==='Washington Square Park');if(i>=0)TRIP[5].plan[i]=["1:30–2:15 PM","NY Dosas & Washington Square Park","NY Dosas 50 Washington Square S New York NY 10012","Try Thiru Kumar’s Pondicherry or masala dosa with sambar and coconut chutney. Usual hours Mon–Sat 11 AM–3 PM; check @nydosas that morning or call 917-710-2092. Queues can exceed an hour; skip or shorten Union Square lunch to arrive earlier. Keep tram timing flexible.","walk"];}
+TRIP[5].food.push(["Lunch / snack","NY Dosas (The Dosa Man)","NY Dosas 50 Washington Square S New York NY 10012","Pondicherry dosa, masala dosa, samosas; served with sambar and coconut chutney.","$","South side of Washington Square Park. Check @nydosas before going; long queues.","https://nydosas.com/"]);
