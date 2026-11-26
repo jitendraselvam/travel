@@ -40,3 +40,49 @@ window.addEventListener('beforeinstallprompt',e=>{e.preventDefault();installEven
 function wLabel(code){return code===0?'clear':code<=2?'partly cloudy':code===3?'cloudy':code<=48?'fog':code<=67?'rain':code<=77?'snow':code<=82?'showers':code<=86?'snow showers':'thunderstorms';}
 async function loadWeather(){try{const now=new Intl.DateTimeFormat('en-CA',{timeZone:'America/New_York',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date());if(now>'2026-12-01'||now<'2026-11-10')return;const resp=await fetch('https://api.open-meteo.com/v1/forecast?latitude=40.7128&longitude=-74.0060&daily=temperature_2m_max,temperature_2m_min,precipitation_probability_max,weather_code&temperature_unit=fahrenheit&timezone=America%2FNew_York&forecast_days=16',{signal:AbortSignal.timeout(6500)});if(!resp.ok)throw new Error('weather unavailable');const d=(await resp.json()).daily;if(!d?.time)throw new Error('weather unavailable');d.time.forEach((t,i)=>{if(TRIP.some(x=>x.date===t)&&Number.isFinite(d.temperature_2m_max[i])&&Number.isFinite(d.temperature_2m_min[i]))weather[t]={high:Math.round(d.temperature_2m_max[i]),low:Math.round(d.temperature_2m_min[i]),rain:d.precipitation_probability_max[i]??'—',label:wLabel(d.weather_code[i])};});}catch{weatherStatus='Live weather unavailable.';}const el=$('#weatherLine');if(el)el.innerHTML=weatherLine(TRIP[day]);}
 parseHash();if(previewMode)getPlans().then(ds=>{applyPlans(ds);rerenderKeepScroll();});else syncPlans();loadWeather();if(!previewMode&&'serviceWorker'in navigator&&location.protocol!=='file:'){navigator.serviceWorker.register('./sw.js',{updateViaCache:'none'}).then(()=>navigator.serviceWorker.ready).then(()=>{$('#offlineStatus').textContent='Guide is cached for offline use. Maps, current weather and external sites still need internet.';}).catch(()=>{$('#offlineStatus').textContent='Offline caching unavailable in this browser.';});}
+
+/* Global trip search: read-only, no private data persisted. */
+(()=>{
+ const dialog=document.querySelector('#tripSearch'), input=dialog.querySelector('input'), filter=dialog.querySelector('select'), results=dialog.querySelector('#searchResults'), status=dialog.querySelector('#searchStatus');
+ let privateItems=[], boardStatusText='', generation=0, shown=[];
+ const norm=s=>String(s??'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().replace(/[’']/g,'').replace(/[^a-z0-9]+/g,' ').trim();
+ function index(){
+  const rows=[];
+  TRIP.forEach((d,i)=>{
+   for(const [type,label] of [['plan','Itinerary'],['food','Food'],['rain','Rain ideas'],['photo','Photos'],['extras','Extras']]){
+    (d[type]||[]).forEach((r,j)=>{const main=type==='plan'||type==='food';rows.push({type,label,name:r[main?1:0],place:r[main?2:1],desc:r[main?3:2],detail:d.label+' · '+(type==='plan'?r[0]:label),day:i,index:j,keywords:[...r,d.name,d.area,d.date].join(' ')});});
+   }
+  });
+  SECRET.forEach((r,i)=>rows.push({type:'secret',label:'Secret NYC',name:r.name,place:r.place,desc:r.desc,detail:'Secret NYC · '+r.kind,index:i,keywords:[r.area,r.timing,r.kind,r.price].join(' ')}));
+  BOOKINGS.forEach((r,i)=>rows.push({type:'bookings',label:'Bookings',name:r[0],desc:r[1],detail:'Bookings',index:i,url:r[3]}));
+  BITES.forEach((r,i)=>rows.push({type:'bites',label:'Food bucket list',name:r[0],desc:r[1],detail:'Food bucket list',index:i}));
+  privateItems.forEach(r=>rows.push({type:'board',label:'Group board',name:r.name,place:r.location,desc:r.note,detail:'Group board · '+(r.category==='food'?'Food & drinks':'Places'),index:r.id}));
+  return rows;
+ }
+ function draw(){
+  const q=norm(input.value), words=q.split(' ').filter(Boolean), category=filter.value;
+  const matches=index().filter(r=>category==='all'||r.type===category||(category==='food'&&r.type==='bites')).map(r=>{const title=norm(r.name),hay=norm([r.name,r.place,r.desc,r.detail,r.keywords].join(' '));return {...r,score:words.every(w=>hay.includes(w))?(title===q?100:title.includes(q)?50:words.every(w=>title.includes(w))?30:10):-1};}).filter(r=>r.score>=0).sort((a,b)=>b.score-a.score);
+  shown=words.length||category!=='all'?matches.slice(0,80):[];
+  status.textContent=(!words.length&&category==='all'?'Search a place, dish, neighborhood or activity.':matches.length+' results'+(matches.length>80?' · first 80 shown':''))+ (boardStatusText?' · '+boardStatusText:'');
+  results.innerHTML=shown.map((r,i)=>`<article class="list-row"><div class="row-text"><span class="eyebrow">${esc(r.detail)}</span><strong>${esc(r.name)}</strong>${r.place?`<p class="address">${esc(r.place)}</p>`:''}<p>${esc(r.desc)}</p><div class="action-row"><button class="action" type="button" data-search-result="${i}">Open ${esc(r.label)} ↗</button>${r.place?link(map(r.place),'Map ↗'):''}${r.url?link(r.url,'Official site ↗'):''}</div></div></article>`).join('')||((words.length||category!=='all')?'<p class="empty">No matches. Try a shorter keyword or another category.</p>':'<p class="small">Try “pizza”, “Brooklyn”, “parade”, or “cocktails”.</p>');
+ }
+ async function open(){
+  if(editing||busyEdit){toast('Save or cancel your edits first.');return;}
+  const seq=++generation;privateItems=[];boardStatusText=previewMode?'':'Checking shared board…';dialog.showModal();draw();input.focus();
+  if(previewMode)return;
+  const tasks=[getPlans().then(ds=>{if(seq===generation&&dialog.open&&!editing&&!busyEdit){applyPlans(ds);draw();}}).catch(()=>{}),apiCall('board').then(data=>{if(seq===generation&&dialog.open){privateItems=Array.isArray(data.items)?data.items:[];boardStatusText='Shared board included';draw();}}).catch(e=>{if(seq===generation&&dialog.open){boardStatusText=e.status===401?'Sign in to search shared board':'Shared board unavailable';draw();}})];
+  await Promise.allSettled(tasks);
+ }
+ document.querySelector('#openTripSearch').addEventListener('click',open);
+ dialog.querySelector('[data-search-close]').addEventListener('click',()=>dialog.close());
+ dialog.addEventListener('close',()=>{generation++;privateItems=[];shown=[];results.replaceChildren();});
+ input.addEventListener('input',draw);filter.addEventListener('change',draw);
+ results.addEventListener('click',e=>{
+  const b=e.target.closest('[data-search-result]');if(!b)return;const r=shown[Number(b.dataset.searchResult)];if(!r)return;
+  dialog.close();
+  if(r.day!==undefined){setDay(r.day,true);tab=r.type;render();const selector=r.type==='plan'?'.timeline li':r.type==='food'?'.place-card':'.list-row';requestAnimationFrame(()=>document.querySelectorAll('#view '+selector)[r.index]?.scrollIntoView({block:'center',behavior:'smooth'}));}
+  else if(r.type==='board'){boardSearch=r.name;boardFilter='all';boardStatus='all';setView('board');}
+  else {setView(r.type);}
+ });
+ document.addEventListener('keydown',e=>{if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='k'&&!dialog.open&&!document.querySelector('dialog[open]')){e.preventDefault();open();}});
+})();
