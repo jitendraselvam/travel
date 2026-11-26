@@ -56,6 +56,14 @@ if(!db.prepare("SELECT value FROM meta WHERE key='lapland-nov29'").get()){
  }
  db.prepare("INSERT INTO meta VALUES('lapland-nov29','1')").run();
 }
+if(!db.prepare("SELECT value FROM meta WHERE key='ny-dosas-nov30'").get()){
+ const rows=JSON.parse(db.prepare('SELECT rows FROM itinerary WHERE day=5').get().rows);
+ if(!rows.some(r=>/ny dosas/i.test(r[1]))){
+ const i=rows.findIndex(r=>r[1]==='Washington Square Park');
+ if(i>=0){rows[i]=[rows[i][0],"NY Dosas & Washington Square Park","NY Dosas 50 Washington Square S New York NY 10012",rows[i][3]+' '+"Try Thiru Kumar’s Pondicherry or masala dosa with sambar and coconut chutney. Usual hours Mon–Sat 11 AM–3 PM; check @nydosas that morning or call 917-710-2092. Queues can exceed an hour; skip or shorten Union Square lunch to arrive earlier. Keep tram timing flexible.",...rows[i].slice(4)];db.prepare('UPDATE itinerary SET rows=?,revision=revision+1 WHERE day=5').run(JSON.stringify(rows));}
+ }
+ db.prepare("INSERT INTO meta VALUES('ny-dosas-nov30','1')").run();
+}
 if(!db.prepare("SELECT value FROM meta WHERE key='food-v2'").get()){
 for(const [category,name,location,note] of JSON.parse(readFileSync('food-v2.json','utf8')))db.prepare('INSERT OR IGNORE INTO items(category,name,location,note,created) VALUES(?,?,?,?,?)').run(category,name,location,note,Date.now());
 db.prepare("INSERT INTO meta VALUES('food-v2','1')").run();}
