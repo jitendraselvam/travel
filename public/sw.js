@@ -1,5 +1,5 @@
-const CACHE='nyc-for-two-static-v9-editorial-3.4';
-const ASSETS=['./','./index.html','./style.css?v=3.4','./app.js?v=3.4','./data.js?v=3.4','./board.js?v=3.4','./editor.js?v=3.4','./secret.js?v=3.4','./manifest.webmanifest','./icon-192.png','./icon-512.png'];
+const CACHE='nyc-for-two-static-v10-editorial-3.5';
+const ASSETS=['./','./index.html','./style.css?v=3.5','./app.js?v=3.5','./data.js?v=3.5','./board.js?v=3.5','./editor.js?v=3.5','./secret.js?v=3.5','./manifest.webmanifest','./icon-192.png','./icon-512.png'];
 self.addEventListener('install',event=>event.waitUntil(caches.open(CACHE).then(c=>c.addAll(ASSETS.map(url=>new Request(url,{cache:'reload'})))).then(()=>self.skipWaiting())));
 self.addEventListener('activate',event=>event.waitUntil(caches.keys().then(keys=>Promise.all(keys.filter(k=>k.startsWith('nyc-for-two-static-')&&k!==CACHE).map(k=>caches.delete(k)))).then(()=>self.clients.claim())));
 self.addEventListener('fetch',event=>{const url=new URL(event.request.url);if(event.request.method!=='GET'||url.origin!==self.location.origin||url.pathname.startsWith('/api/')||url.pathname==='/healthz')return;
