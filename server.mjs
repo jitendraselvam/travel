@@ -44,6 +44,18 @@ if(!db.prepare("SELECT value FROM meta WHERE key='parade-nov28'").get()){
  if(JSON.stringify(sa)!==JSON.stringify(sat))save.run(JSON.stringify(sa),3);
  db.prepare("INSERT INTO meta VALUES('parade-nov28','1')").run();
 }
+if(!db.prepare("SELECT value FROM meta WHERE key='lapland-nov29'").get()){
+ const rows=JSON.parse(db.prepare('SELECT rows FROM itinerary WHERE day=4').get().rows);
+ const already=db.prepare('SELECT rows FROM itinerary').all().some(d=>JSON.parse(d.rows).some(r=>/lap\s*land/i.test(r[1])));
+ if(!already&&rows.length<40){
+ const at=rows.findIndex(r=>r[1]==='Central Park');
+ const lunch=rows.findIndex(r=>r[1]==='Lunch near Morgan Library');
+ rows.splice(at>=0?at+1:lunch>=0?lunch:Math.min(2,rows.length),0,["12–12:45 PM","Lapland Christmas Store NYC","3 W 57th St New York NY 10019","Walk from southeast Central Park via Fifth Avenue. Free walk-in festive shop with elves, Christmas displays and hot chocolate for purchase. Sunday 11 AM–8 PM; allow for queues. Then take F from 57 St to 34 St–Herald Sq for lunch.","walk"]);
+ for(const r of rows){if(r[1]==='Lunch near Morgan Library'&&r[0]==='12–1 PM')r[0]='12:45–1:30 PM';if(r[1]==='Morgan Library & Museum'&&r[0]==='1–3 PM')r[0]='1:30–3 PM';}
+ db.prepare('UPDATE itinerary SET rows=?,revision=revision+1 WHERE day=4').run(JSON.stringify(rows));
+ }
+ db.prepare("INSERT INTO meta VALUES('lapland-nov29','1')").run();
+}
 if(!db.prepare("SELECT value FROM meta WHERE key='food-v2'").get()){
 for(const [category,name,location,note] of JSON.parse(readFileSync('food-v2.json','utf8')))db.prepare('INSERT OR IGNORE INTO items(category,name,location,note,created) VALUES(?,?,?,?,?)').run(category,name,location,note,Date.now());
 db.prepare("INSERT INTO meta VALUES('food-v2','1')").run();}
