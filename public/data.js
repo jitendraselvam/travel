@@ -33,3 +33,6 @@ TRIP[3].area='Upper West Side · Downtown · DUMBO';
 TRIP[3].pace='Early start · flexible downtown stops';
 TRIP[3].tip='Parade 8:30 AM; check revised viewing access. Downtown stops are short and optional if delayed; prioritize Brooklyn Bridge and DUMBO before dusk.';
 TRIP[3].photo.unshift(['Central Park West','Central Park West and West 74th Street New York','Freeze parade motion with 1/500s or faster; verify viewing access.']);
+
+TRIP[4].plan.splice(2,0,["12–12:45 PM","Lapland Christmas Store NYC","3 W 57th St New York NY 10019","Walk from southeast Central Park via Fifth Avenue. Free walk-in festive shop with elves, Christmas displays and hot chocolate for purchase. Sunday 11 AM–8 PM; allow for queues. Then take F from 57 St to 34 St–Herald Sq for lunch.","walk"]);
+TRIP[4].plan[3][0]='12:45–1:30 PM';TRIP[4].plan[4][0]='1:30–3 PM';
