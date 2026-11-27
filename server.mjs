@@ -64,6 +64,14 @@ if(!db.prepare("SELECT value FROM meta WHERE key='ny-dosas-nov30'").get()){
  }
  db.prepare("INSERT INTO meta VALUES('ny-dosas-nov30','1')").run();
 }
+if(!db.prepare("SELECT value FROM meta WHERE key='hudson-yards-night'").get()){
+ const get=db.prepare('SELECT rows FROM itinerary WHERE day=?'),save=db.prepare('UPDATE itinerary SET rows=?,revision=revision+1 WHERE day=?');
+ const fri=JSON.parse(get.get(2).rows),sun=JSON.parse(get.get(4).rows),before=[JSON.stringify(fri),JSON.stringify(sun)];
+ ((fri,sun)=>{const i=fri.findIndex(r=>r[1]==="Hudson Yards & Vessel");if(i>=0)fri.splice(i,1);const h=fri.find(r=>r[1]==="High Line");if(h&&h[0]==="1–2 PM"){h[0]="1–3:30 PM";h[3]="Walk north at a relaxed pace; optional Chelsea galleries or coffee before Edge check-in.";}const j=sun.findIndex(r=>r[1]==="Rockettes Christmas Spectacular");if(j>=0)sun[j]=["7–8:30 PM","Hudson Yards Christmas lights & Vessel","The Shops at Hudson Yards New York","Take the 7 from Times Sq–42 St to 34 St–Hudson Yards. Enjoy the illuminated holiday displays and Vessel exterior; check shop hours separately.","transit"];const d=sun.find(r=>r[1]==="Early dinner");if(d)d[3]="Dinner near Times Square before taking the 7 to Hudson Yards.";const e=sun.find(r=>r[1]==="Festive stroll or drinks");if(e){e[2]="Hudson Yards New York";e[3]="Optional drinks nearby or return via 7 to Times Sq and uptown 1 to 86 St.";}})(fri,sun);
+ if(JSON.stringify(fri)!==before[0])save.run(JSON.stringify(fri),2);
+ if(JSON.stringify(sun)!==before[1])save.run(JSON.stringify(sun),4);
+ db.prepare("INSERT INTO meta VALUES('hudson-yards-night','1')").run();
+}
 if(!db.prepare("SELECT value FROM meta WHERE key='food-v2'").get()){
 for(const [category,name,location,note] of JSON.parse(readFileSync('food-v2.json','utf8')))db.prepare('INSERT OR IGNORE INTO items(category,name,location,note,created) VALUES(?,?,?,?,?)').run(category,name,location,note,Date.now());
 db.prepare("INSERT INTO meta VALUES('food-v2','1')").run();}
